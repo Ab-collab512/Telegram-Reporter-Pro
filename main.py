@@ -66,38 +66,38 @@ def control(proxy, proxy_type, username):
     try:
         session = requests.Session()
         session.proxies = proxy_dict
-        session.headers.update({'User-Agent': USER_AGENT})
+        session.headers.update({
+            'User-Agent': USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Origin': 'https://telegram.org',
+            'Referer': 'https://telegram.org/support'
+        })
         
         # Step 1: Get the form and cookies
         response = session.get(url, timeout=time_out)
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Check for Cloudflare Turnstile or other captchas
-        captcha_div = soup.find('div', class_='cf-turnstile')
-        if captcha_div:
-            # Note: Automated solving of Cloudflare Turnstile requires specialized services.
-            # Here we simulate the logic of handling it if a token was available.
-            # For now, we attempt to proceed as Telegram sometimes allows submissions without it if the proxy is clean.
-            pass
-            
-        # Step 2: Prepare data
+        # Step 2: Prepare data with CORRECT field names from HTML analysis
         message = get_random_line('message.txt', username)
         email = generate('gmail')
         phone = generate_random_phone_number()
         
         data = {
-            'support_problem': message,
-            'support_email': email,
-            'support_phone': phone,
-            'support_legal_name': 'Telegram User'
+            'message': message,      # Correct name for textarea
+            'legal_name': 'Telegram User', # Correct name for legal name input
+            'email': email,          # Correct name for email input
+            'phone': phone,          # Correct name for phone input
+            'setln': ''              # Language setting
         }
         
-        # Add hidden inputs if any
+        # Add hidden inputs and other dynamic fields
         form = soup.find('form', action="/support")
         if form:
-            hidden_inputs = form.find_all('input', type='hidden')
-            for hidden in hidden_inputs:
-                data[hidden.get('name')] = hidden.get('value', '')
+            for input_tag in form.find_all(['input', 'textarea']):
+                name_attr = input_tag.get('name')
+                if name_attr and name_attr not in data:
+                    data[name_attr] = input_tag.get('value', '')
         
         # Step 3: Post the form
         post_response = session.post(url, data=data, timeout=time_out)
@@ -108,7 +108,7 @@ def control(proxy, proxy_type, username):
                 print(f"Report Successful: {email} | {phone} | Proxy: {proxy}")
                 success_count += 1
             else:
-                # Even if 200, it might be showing a captcha or error page
+                # If 200 but no success message, it might be a captcha wall
                 error_count += 1
         else:
             error_count += 1
@@ -128,7 +128,7 @@ def start_view():
             filename = f"{proxy_type}_proxies.txt"
             if not os.path.exists(filename):
                 continue
-            with open(filename, 'r') as file:
+            with open(filename, 'r', encoding='utf-8') as file:
                 proxies = file.readlines()
             
             if not proxies:
@@ -157,8 +157,9 @@ def check_views():
         sleep(5)
 
 if __name__ == "__main__":
-    print("Telegram Support Reporter - Updated")
-    username = input("Enter target (username/link): ")
+    print("Telegram Support Reporter - Pro Edition")
+    target = input("Enter target (username/link): ")
+    username = target
     
     # Start reporting thread
     Thread(target=start_view, daemon=True).start()
