@@ -4,4 +4,4 @@ configparser
 random-user-agent
 emailtools
 bs4
-phonenumbers
+phonenumberscurl_cffi
